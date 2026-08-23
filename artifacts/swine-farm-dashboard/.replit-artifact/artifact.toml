@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Swine Farm Dashboard"
+description = "A responsive companion web dashboard for farmers to monitor system health, manage feeding and rinse schedules, operate manual controls, review activity, and configure their farm system."
+version = "1.0.0"
+id = "artifacts/swine-farm-dashboard"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20780
+
+[services.development]
+run = "pnpm --filter @workspace/swine-farm-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/swine-farm-dashboard", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/swine-farm-dashboard/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20780"
+BASE_PATH = "/"

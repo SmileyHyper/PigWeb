@@ -1,0 +1,524 @@
+# Build a Web-Based Farmer Dashboard for My Mobile App
+
+Create a modern, responsive **web-based dashboard UI** that works as the companion web interface for my existing mobile application.
+
+The web dashboard must use **Firebase Authentication** and **Firebase Realtime Database** as the backend.
+
+## 1. Main Goal
+
+Build a web application where an authenticated farmer can monitor and control the farming system from a desktop or mobile browser.
+
+The web dashboard should use the **same Firebase Realtime Database** used by my mobile application so that changes made from the web dashboard are reflected in the mobile app and vice versa.
+
+Do NOT create a separate database.
+
+---
+
+# 2. Firebase Realtime Database
+
+The existing database contains these main paths:
+
+```text
+/system
+/feedingSchedules
+/rinseSchedules
+/manualControl
+/logs
+/notifications
+```
+
+The application must read and write data using these paths according to the Firebase security rules.
+
+Do not invent unnecessary database paths.
+
+Before implementing database operations, inspect the existing project and determine the actual data structure where possible.
+
+---
+
+# 3. Authentication
+
+Implement Firebase Authentication.
+
+The farmer must log in before accessing the dashboard.
+
+Create:
+
+* Login page
+* Logout functionality
+* Authentication state checking
+* Protected dashboard routes
+* Loading state while Firebase checks authentication
+
+Unauthenticated users must be redirected to the login page.
+
+Authenticated users can access the dashboard.
+
+Do not store passwords manually in Realtime Database.
+
+Use Firebase Authentication.
+
+---
+
+# 4. Dashboard
+
+Create a professional farmer-friendly dashboard.
+
+The dashboard should have a sidebar navigation:
+
+* Dashboard
+* Feeding Schedule
+* Rinse Schedule
+* Manual Control
+* System Monitoring
+* Logs
+* Notifications
+* Settings
+* Logout
+
+On the main dashboard display real-time system information.
+
+Create cards for important values such as:
+
+* System status
+* Temperature
+* Moisture
+* Feeding status
+* Rinse status
+* Manual control status
+* Latest notification
+
+If the exact sensor fields are already defined in the project/Firebase structure, use those fields instead of inventing new ones.
+
+---
+
+# 5. System Monitoring
+
+Create a System Monitoring page connected to:
+
+```text
+/system
+```
+
+Display available system information in a clean dashboard.
+
+Possible information may include:
+
+* Temperature
+* Moisture
+* Water status
+* Feeding status
+* Rinse status
+* Automatic/manual mode
+* Device connection status
+
+Use real-time Firebase listeners where appropriate.
+
+When Firebase data changes, the UI should update automatically without requiring the farmer to refresh the page.
+
+---
+
+# 6. Feeding Schedule
+
+Create a Feeding Schedule page connected to:
+
+```text
+/feedingSchedules
+```
+
+The farmer should be able to:
+
+* View feeding schedules
+* Add a feeding schedule
+* Edit a feeding schedule
+* Delete a feeding schedule
+* Enable/disable a schedule
+* View the next scheduled feeding
+
+Create a clean form containing appropriate fields based on the existing Firebase data structure.
+
+Do not overwrite existing data structures unnecessarily.
+
+---
+
+# 7. Rinse Schedule
+
+Create a Rinse Schedule page connected to:
+
+```text
+/rinseSchedules
+```
+
+Allow the farmer to:
+
+* View rinse schedules
+* Add a rinse schedule
+* Edit a rinse schedule
+* Delete a rinse schedule
+* Enable/disable a schedule
+* View upcoming rinse schedules
+
+Use Firebase Realtime Database for all operations.
+
+---
+
+# 8. Manual Control
+
+Create a Manual Control page connected to:
+
+```text
+/manualControl
+```
+
+Create large, easy-to-use controls suitable for a farmer.
+
+For example:
+
+* Feeding ON/OFF
+* Rinse ON/OFF
+* Water/Pump ON/OFF
+* Other controls that actually exist in the Firebase structure
+
+IMPORTANT:
+
+Only create controls for devices/fields that actually exist in the existing application.
+
+When the farmer changes a control:
+
+1. Confirm the action when appropriate.
+2. Update Firebase.
+3. Show a success/error message.
+4. Immediately reflect the new state in the UI.
+
+Example:
+
+```text
+FEEDER
+[ ON ] [ OFF ]
+
+RINSE
+[ ON ] [ OFF ]
+```
+
+Use clear visual states so the farmer knows whether something is currently ON or OFF.
+
+---
+
+# 9. Logs
+
+Create a Logs page connected to:
+
+```text
+/logs
+```
+
+Display system events in a table.
+
+Include information such as:
+
+* Date/time
+* Event
+* Device
+* Action
+* Status
+
+If timestamps exist in Firebase, format them into a readable date/time.
+
+Add:
+
+* Search
+* Filtering
+* Sorting
+* Pagination if there are many logs
+
+Do not modify existing log records unnecessarily.
+
+---
+
+# 10. Notifications
+
+Create a Notifications page connected to:
+
+```text
+/notifications
+```
+
+Display notifications in a clean interface.
+
+Support:
+
+* Read/unread status if available
+* Notification timestamp
+* Notification type
+* Notification message
+* Mark as read if supported by the existing database structure
+
+Show important unread notifications on the dashboard.
+
+---
+
+# 11. UI Design
+
+Create a professional modern agricultural/farm management design.
+
+The design should be:
+
+* Clean
+* Responsive
+* Mobile-friendly
+* Desktop-friendly
+* Easy for farmers to understand
+* Accessible
+* Fast
+
+Use a modern dashboard layout.
+
+Suggested visual direction:
+
+* Green as the primary agricultural color
+* White/light backgrounds
+* Dark readable text
+* Rounded cards
+* Simple icons
+* Clear status indicators
+* Minimal animations
+
+Do not make the interface unnecessarily complicated.
+
+The web dashboard should feel like a professional farming management system rather than a generic admin template.
+
+---
+
+# 12. Responsive Design
+
+The dashboard must work properly on:
+
+* Desktop
+* Laptop
+* Tablet
+* Mobile browser
+
+On smaller screens:
+
+* Collapse the sidebar
+* Use a mobile navigation menu
+* Make dashboard cards responsive
+* Make tables horizontally scrollable when necessary
+* Make buttons large enough for touch interaction
+
+---
+
+# 13. Real-Time Firebase Updates
+
+Use Firebase Realtime Database listeners where appropriate.
+
+For example:
+
+```javascript
+onValue(...)
+```
+
+The dashboard should update automatically when the mobile app changes Firebase data.
+
+Example:
+
+```text
+Mobile App
+    ↓
+Firebase
+    ↓
+Web Dashboard updates automatically
+```
+
+And:
+
+```text
+Web Dashboard
+    ↓
+Firebase
+    ↓
+Mobile App receives updated data
+```
+
+---
+
+# 14. Firebase Configuration
+
+Do not hard-code sensitive credentials directly into source files.
+
+Use environment variables/secrets.
+
+Create configuration using variables such as:
+
+```text
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_DATABASE_URL
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+```
+
+If the existing Replit project already has Firebase configuration, inspect and reuse it rather than creating duplicate configuration.
+
+IMPORTANT:
+
+Never put Firebase Admin SDK private credentials or service-account private keys in frontend code.
+
+---
+
+# 15. Firebase Database URL
+
+Use the existing Firebase Realtime Database URL.
+
+Do not invent a database URL.
+
+If it is missing from the Replit environment variables, clearly tell me which environment variable is missing.
+
+---
+
+# 16. Firebase Security
+
+The web application must work with Firebase Authentication and the existing Firebase Realtime Database security rules.
+
+Do NOT:
+
+* Make the database publicly readable
+* Make the database publicly writable
+* Disable Firebase security rules
+* Put service-account credentials in the frontend
+* Bypass Firebase Authentication
+
+The authenticated farmer should only be able to perform operations allowed by the Firebase security rules.
+
+---
+
+# 17. Error Handling
+
+Handle:
+
+* Firebase connection errors
+* Authentication errors
+* Permission denied errors
+* Missing database data
+* Network errors
+* Invalid forms
+* Failed writes
+
+Display user-friendly messages.
+
+Do not expose sensitive Firebase errors unnecessarily.
+
+---
+
+# 18. Loading States
+
+Add loading indicators while:
+
+* Logging in
+* Loading dashboard data
+* Loading schedules
+* Saving changes
+* Deleting schedules
+* Updating manual controls
+
+Avoid showing an empty dashboard while Firebase is still loading.
+
+---
+
+# 19. Project Structure
+
+Use a clean and maintainable project structure.
+
+Separate:
+
+* Components
+* Pages
+* Firebase configuration
+* Authentication
+* Database services
+* Utilities
+* Styles
+
+Do not put the entire application into one large file.
+
+---
+
+# 20. Existing Project
+
+Before making major changes:
+
+1. Inspect the existing Replit project.
+2. Identify the current framework.
+3. Identify existing Firebase configuration.
+4. Identify existing database field names.
+5. Identify existing authentication implementation.
+6. Reuse existing components where possible.
+7. Do not unnecessarily replace working code.
+
+If the project is empty, create an appropriate modern web application.
+
+Prefer React + Vite if there is no existing framework.
+
+---
+
+# 21. GitHub
+
+The project will eventually be connected to my GitHub repository.
+
+Keep the project organized and Git-friendly.
+
+Do not commit:
+
+```text
+.env
+.env.local
+Firebase service-account JSON files
+private keys
+passwords
+API secrets
+```
+
+Create/update `.gitignore` appropriately.
+
+---
+
+# 22. Important Rule
+
+DO NOT GUESS the Firebase database structure.
+
+First inspect the existing project and configuration.
+
+If the exact structure of any Firebase path is unknown, create the UI in a way that is easy to adapt and tell me exactly which Firebase fields you need.
+
+Do not silently create incompatible database structures.
+
+---
+
+# 23. Final Testing
+
+After implementing the application, test:
+
+* Login
+* Logout
+* Dashboard loading
+* Firebase connection
+* Realtime data updates
+* Feeding schedule CRUD
+* Rinse schedule CRUD
+* Manual controls
+* Logs
+* Notifications
+* Responsive layout
+* Firebase permission errors
+
+Fix any build errors before finishing.
+
+Finally, give me a short report containing:
+
+1. What you created
+2. Firebase environment variables required
+3. Firebase database paths used
+4. Any Firebase rules that need to be configured
+5. Any remaining issues
+6. How to run the application

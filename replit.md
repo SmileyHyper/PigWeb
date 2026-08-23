@@ -1,6 +1,6 @@
-# [Project name]
+# Swine Farm Control
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Companion web dashboard for monitoring and operating a Firebase-backed swine farm control system.
 
 ## Run & Operate
 
@@ -30,7 +30,24 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Responsive farmer dashboard at the root artifact.
+- Firebase-ready email/password authentication and Realtime Database adapter.
+- Overview, feeding schedules, rinse cycles, manual controls, monitoring, activity logs, notifications, and settings pages.
+- Demo presentation data is used only when the Firebase client configuration is absent.
+
+## Firebase configuration
+
+The web dashboard expects these Vite environment variables:
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_DATABASE_URL`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+
+It reads `/system`, `/feedingSchedules`, `/rinseSchedules`, `/manualControl`, `/logs`, and `/notifications`; the current repository snapshot did not include an authoritative Firebase field schema, so the adapter preserves those exact paths and only maps known fields.
 
 ## User preferences
 
