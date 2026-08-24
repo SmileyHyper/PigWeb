@@ -1,0 +1,220 @@
+# Firebase Realtime Database Schema — Reference for CRUD Implementation
+
+This is the **actual, already-deployed** structure of the Realtime Database.
+Do not invent alternate field names — build the web dashboard's CRUD
+operations against exactly what's below.
+
+---
+
+## `/system` (read-mostly; written by the device/backend, read by the UI)
+
+```json
+{
+  "system": {
+    "feedLevel": -1,
+    "feedDistance": -1,
+    "feederStatus": "IDLE",
+    "feederStatusReason": "UNKNOWN",
+    "rinseStatus": "IDLE",
+    "pumpStatus": "OFF",
+    "systemStatus": "OFFLINE",
+    "wifiStatus": "DISCONNECTED",
+    "firebaseStatus": "DISCONNECTED",
+    "gsmStatus": "DISCONNECTED",
+    "lastFeeding": 0,
+    "lastRinse": 0,
+    "updatedAt": 0
+  }
+}
+```
+
+| Field | Type | Values |
+|---|---|---|
+| `feedLevel` | number | 0–100, or `-1` if unknown/sensor error |
+| `feedDistance` | number | raw sensor distance in cm, or `-1` |
+| `feederStatus` | string | `IDLE` \| `RUNNING` |
+| `feederStatusReason` | string | `FULL` \| `NORMAL` \| `LOW` \| `EMPTY` \| `SENSOR_ERROR` \| `UNKNOWN` |
+| `rinseStatus` | string | `IDLE` \| `RUNNING` |
+| `pumpStatus` | string | `ON` \| `OFF` |
+| `systemStatus` | string | `ONLINE` \| `OFFLINE` |
+| `wifiStatus` / `firebaseStatus` / `gsmStatus` | string | `CONNECTED` \| `DISCONNECTED` |
+| `lastFeeding` / `lastRinse` / `updatedAt` | number | Unix ms timestamp, `0` if never set |
+
+There are no `temperature` or `moisture` fields in this project — those
+belong to a different kind of sensor setup and aren't part of this system.
+**Don't add UI cards for fields that don't exist here.**
+
+---
+
+## `/feedingSchedules/{scheduleId}` — full CRUD
+
+```json
+{
+  "feedingSchedules": {
+    "sample1": {
+      "time": "06:00",
+      "duration": 10,
+      "enabled": true,
+      "createdAt": 0
+    }
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `time` | string | `"HH:MM"`, 24-hour format |
+| `duration` | number | seconds, 1–60 |
+| `enabled` | boolean | |
+| `createdAt` | number | set with `ServerValue.TIMESTAMP` on create, never edited |
+
+- **Create:** `push()` a new child under `/feedingSchedules` with all four fields.
+- **Read:** `onValue()` listener on `/feedingSchedules`.
+- **Update:** `update()` on `/feedingSchedules/{id}` — only send changed fields, never touch `createdAt`.
+- **Delete:** `remove()` on `/feedingSchedules/{id}`.
+- **Enable/disable:** just `update({ enabled: !current })`, don't delete/recreate.
+- **"Next scheduled feeding":** client-side — filter `enabled === true`, compare `time` against the current clock, pick the soonest.
+
+## `/rinseSchedules/{scheduleId}` — identical shape, separate node
+
+```json
+{
+  "rinseSchedules": {
+    "sample1": {
+      "time": "08:00",
+      "duration": 30,
+      "enabled": true,
+      "createdAt": 0
+    }
+  }
+}
+```
+
+Same field types as feeding schedules; `duration` allows up to 300 seconds
+here (rinse cycles run longer than feeding).
+
+---
+
+## `/manualControl` — two booleans only
+
+```json
+{
+  "manualControl": {
+    "feed": false,
+    "rinse": false
+  }
+}
+```
+
+- Setting `feed: true` or `rinse: true` requests that action.
+- The backend/device clears it back to `false` once the action starts —
+  so the UI should treat "true" as a brief pending/in-progress state, not
+  a persistent toggle. Don't build an ON/OFF switch bound directly to this
+  value; use a momentary "Start Feeding" / "Start Rinse" button instead,
+  and reflect the actual running state from `/system/feederStatus` and
+  `/system/rinseStatus`.
+- There is no separate `/manualControl/pump` — pump state is derived from
+  `/system/pumpStatus`, driven by the rinse cycle.
+
+---
+
+## `/logs/{logId}` — append-only, read + create (rarely written from the UI)
+
+```json
+{
+  "logs": {
+    "seedLog1": {
+      "type": "SYSTEM",
+      "message": "Database initialized",
+      "status": "SUCCESS",
+      "timestamp": 0
+    }
+  }
+}
+```
+
+| Field | Type | Values |
+|---|---|---|
+| `type` | string | `FEEDING` \| `RINSE` \| `LOW_FEED` \| `ERROR` \| `SYSTEM` |
+| `message` | string | human-readable description |
+| `status` | string | `SUCCESS` \| `WARNING` \| `ERROR` \| `IN_PROGRESS` |
+| `timestamp` | number | Unix ms, `ServerValue.TIMESTAMP` on write |
+
+Use `query(ref(db, "/logs"), orderByChild("timestamp"), limitToLast(200))`
+for pagination-friendly reads rather than pulling the whole node.
+
+---
+
+## `/notifications/{notificationId}` — append-only, read + create
+
+```json
+{
+  "notifications": {}
+}
+```
+
+Starts empty; populated as SMS notifications are sent. Expected shape once populated:
+
+| Field | Type |
+|---|---|
+| `type` | string (`LOW_FEED`, `FEEDING`, `RINSE`, `SYSTEM`) |
+| `message` | string |
+| `phone` | string |
+| `status` | string (`SENT` \| `FAILED`) |
+| `timestamp` | number |
+
+**There is no `read`/`unread` field in the current structure.** If you want
+read/unread tracking, that's a new field (`read: boolean`) you'd need to
+add — don't assume it exists; ask before building UI around it.
+
+---
+
+## `/settings` — read + update only (no create/delete; it's a singleton)
+
+```json
+{
+  "settings": {
+    "farmerName": "",
+    "farmerPhone": "+639170000000",
+    "lowFeedThreshold": 20,
+    "containerHeightCm": 40,
+    "emptyDistanceCm": 45,
+    "fullDistanceCm": 5,
+    "feederMaxRuntimeSec": 15,
+    "pumpMaxRuntimeSec": 60,
+    "systemEnabled": true,
+    "timezone": "Asia/Manila"
+  }
+}
+```
+
+Always use `update()`, never `set()`, so you don't wipe fields the form
+doesn't include.
+
+---
+
+## Environment variables (Vite naming, per your spec)
+
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_DATABASE_URL
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+```
+
+Pull these from Firebase Console → Project Settings → General → Your apps
+→ Web app config. Same project as your mobile app — do not create a second
+Firebase project or a second Web app entry; reuse the existing config
+values so both apps hit the same database.
+
+## Security rules already deployed
+
+Rules require `auth != null` for all reads/writes on every path above,
+plus field-level validation on `feedingSchedules`/`rinseSchedules` (time
+format, duration range, boolean type checks) and required-field checks on
+`logs`/`notifications`. If a write gets `PERMISSION_DENIED`, it's almost
+always one of: not signed in, a missing required field, or `time` not
+matching `HH:MM` — not a rules misconfiguration.

@@ -47,7 +47,10 @@ The web dashboard expects these Vite environment variables:
 - `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
 
-It reads `/system`, `/feedingSchedules`, `/rinseSchedules`, `/manualControl`, `/logs`, and `/notifications`; the current repository snapshot did not include an authoritative Firebase field schema, so the adapter preserves those exact paths and only maps known fields.
+It reads and writes the deployed Firebase schema at `/system`, `/feedingSchedules`, `/rinseSchedules`, `/manualControl`, `/logs`, `/notifications`, and `/settings`.
+- `/system` is read-mostly and uses controller fields such as `feedLevel`, `feederStatus`, `rinseStatus`, connection states, and timestamps. Schedules use exact `time`, `duration`, `enabled`, and server-generated `createdAt` fields.
+- Manual control is momentary (`feed` and `rinse` only); pump state comes from `/system/pumpStatus`. Logs and notifications are append-only, and notifications do not have a `read` field.
+- Settings is a singleton updated with partial `update()` operations. The Settings page includes an authenticated database initialization action for the required singleton defaults.
 
 ## User preferences
 
