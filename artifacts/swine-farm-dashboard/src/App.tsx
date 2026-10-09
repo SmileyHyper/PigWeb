@@ -5,9 +5,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   Activity, AlertTriangle, Bell, CalendarClock, Check, ChevronRight, CircleCheckBig,
-  CircleHelp, Clock3, Droplets, FileText, Gauge, Home, LogOut, Menu, Pencil, Plus,
-  Power, Radio, RefreshCw, Search, Settings, ShieldCheck, Sprout, Trash2, Utensils,
-  Waves, Wifi, X,
+  CircleHelp, Clock3, Droplets, FileText, Gauge, Home, LogOut, Menu, Moon, Pencil, Plus,
+  Power, Radio, RefreshCw, Search, Settings, ShieldCheck, Sprout, Sun, SunMedium, Trash2,
+  Utensils, Waves, Wifi, X,
 } from 'lucide-react';
 import { Link, Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
 import {
@@ -74,14 +74,206 @@ function Overview() {
   return <div className="page"><PageHeading eyebrow="Live control room" title="Farm overview" subtitle="A clear view of the systems keeping the barn on schedule." action={<Link className="button button-primary" href="/manual"><Power /> Manual controls</Link>} /><div className="grid stats-grid"><div className="stat-card"><Utensils className="stat-icon" /><span className="stat-label">Feed level</span><strong className="stat-value">{system.feedLevel < 0 ? '—' : `${system.feedLevel}%`}</strong><span className="stat-note">{system.feederStatusReason}</span></div><div className="stat-card"><Waves className="stat-icon" /><span className="stat-label">Feeder status</span><strong className="stat-value">{system.feederStatus}</strong><span className="stat-note">{system.feederStatusReason}</span></div><div className="stat-card"><Clock3 className="stat-icon" /><span className="stat-label">Next feeding</span><strong className="stat-value">{next?.time || '—'}</strong><span className="stat-note">{next ? `${next.duration} seconds` : 'No enabled schedule'}</span></div><div className="stat-card"><Wifi className="stat-icon" /><span className="stat-label">System</span><strong className="stat-value">{system.systemStatus}</strong><span className="stat-note">{system.wifiStatus}</span></div></div><div className="grid overview-grid"><section className="panel system-hero"><div className="hero-top"><div><div className="hero-kicker">Device state</div><div className="hero-title">{system.systemStatus === 'ONLINE' ? 'Operating normally' : 'System is offline'}</div></div><StatusBadge status={system.systemStatus} /></div><div className="hero-metrics"><div className="hero-metric"><strong>{system.feederStatus}</strong><span>Feeder</span></div><div className="hero-metric"><strong>{system.rinseStatus}</strong><span>Rinse</span></div><div className="hero-metric"><strong>{system.pumpStatus}</strong><span>Pump</span></div><div className="hero-metric"><strong>{displayTimestamp(system.updatedAt)}</strong><span>Last update</span></div></div></section><section className="panel"><div className="panel-header"><div><h2 className="panel-title">Connections</h2><p className="panel-subtitle">Device communication status</p></div><Radio size={16} /></div><div className="status-list">{[['Wi-Fi', system.wifiStatus], ['Firebase', system.firebaseStatus], ['GSM', system.gsmStatus]].map(([label, value]) => <div className="status-row" key={label}><span className="status-name"><span className={`status-dot ${value === 'CONNECTED' ? 'good' : ''}`} />{label}</span><span className="status-value">{value}</span></div>)}</div></section></div><section className="panel activity-panel"><div className="panel-header"><div><h2 className="panel-title">Recent activity</h2><p className="panel-subtitle">Latest events from the farm</p></div><Link href="/logs" className="text-link">View all <ChevronRight size={13} /></Link></div><div className="activity-list">{logs.map(log => <div className="activity-row" key={log.id}><span className="activity-time">{displayTimestamp(log.timestamp)}</span><span className="activity-dot"><Activity /></span><div><div className="activity-event">{log.message}</div><div className="activity-device">{log.type}</div></div><StatusBadge status={log.status} /></div>)}</div></section></div>;
 }
 
+type FeedingPeriod = 'morning' | 'afternoon' | 'evening';
+const feedingPeriods: { key: FeedingPeriod; label: string; range: string; start: string; end: string; defaultTime: string }[] = [
+  { key: 'morning', label: 'Morning', range: '00:00–11:59', start: '00:00', end: '11:59', defaultTime: '06:00' },
+  { key: 'afternoon', label: 'Afternoon', range: '12:00–17:59', start: '12:00', end: '17:59', defaultTime: '12:00' },
+  { key: 'evening', label: 'Evening', range: '18:00–23:59', start: '18:00', end: '23:59', defaultTime: '18:00' },
+];
+function periodForTime(time: string): FeedingPeriod {
+  return time < '12:00' ? 'morning' : time < '18:00' ? 'afternoon' : 'evening';
+}
+
 function SchedulePage({ kind }: { kind: 'feeding' | 'rinse' }) {
-  const node = kind === 'feeding' ? '/feedingSchedules' : '/rinseSchedules'; const isFeed = kind === 'feeding';
-  const items = useFirebaseCollection<Schedule>(node, isFeed ? demoSchedules : demoRinse); const [modal, setModal] = useState<string | 'new' | null>(null); const [toast, setToast] = useState('');
-  const current = items.find(item => item.id === modal);
-  const save = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const data = new FormData(event.currentTarget); const value = { time: String(data.get('time')), duration: Number(data.get('duration')), enabled: current?.enabled ?? true }; try { if (firebaseConfigured) { if (modal === 'new') await addWithServerTimestamp(node, value, 'createdAt'); else if (modal) await updateAtPath(`${node}/${modal}`, value); } setModal(null); setToast('Schedule saved'); } catch { setToast('Could not save. Check Firebase permissions and the time format.'); } };
-  const toggle = async (item: Schedule) => { try { if (firebaseConfigured) await updateAtPath(`${node}/${item.id}`, { enabled: !item.enabled }); } catch { setToast('Could not update schedule.'); } };
-  const remove = async (id: string) => { if (!confirm('Delete this schedule?')) return; try { if (firebaseConfigured) await removeAtPath(`${node}/${id}`); } catch { setToast('Could not delete schedule.'); } };
-  return <div className="page"><PageHeading eyebrow={isFeed ? 'Daily nutrition' : 'Clean water lines'} title={isFeed ? 'Feeding schedules' : 'Rinse cycles'} subtitle="Changes are synchronized to Firebase in realtime." action={<button className="button button-primary" onClick={() => setModal('new')}><Plus /> Add schedule</button>} /><div className="panel schedule-card"><div className="panel-header"><div><h2 className="panel-title">{items.length} routines</h2><p className="panel-subtitle">{isFeed ? 'Duration is 1–60 seconds.' : 'Duration is 1–300 seconds.'}</p></div><span className="badge badge-neutral"><CalendarClock size={12} /> 24-hour time</span></div><div className="schedule-list">{items.length ? items.map(item => <div className="schedule-row" key={item.id}><div className="time-block">{item.time}</div><div className="schedule-main"><div className="schedule-label">{isFeed ? 'Feeding routine' : 'Rinse routine'}</div><div className="schedule-meta">{item.duration} seconds · {item.enabled ? 'Enabled' : 'Disabled'}</div></div><button className={`toggle ${item.enabled ? 'on' : ''}`} onClick={() => toggle(item)} aria-label="Toggle schedule" /><div className="row-actions"><button onClick={() => setModal(item.id)} aria-label="Edit schedule"><Pencil /></button><button onClick={() => remove(item.id)} aria-label="Delete schedule"><Trash2 /></button></div></div>) : <div className="empty"><CalendarClock /><h3>No schedules yet</h3><p>Add the first routine for this system.</p></div>}</div></div>{modal && <div className="modal-backdrop"><div className="modal"><div className="modal-head"><div><p className="eyebrow">{isFeed ? 'Feeding routine' : 'Rinse routine'}</p><div className="modal-title">{modal === 'new' ? 'Add schedule' : 'Edit schedule'}</div></div><button className="modal-close" onClick={() => setModal(null)}><X /></button></div><form onSubmit={save}><div className="form-grid"><div className="field"><label htmlFor="time">Start time</label><input id="time" name="time" type="time" defaultValue={current?.time || '08:00'} required /></div><div className="field"><label htmlFor="duration">Duration (seconds)</label><input id="duration" name="duration" type="number" min="1" max={isFeed ? 60 : 300} defaultValue={current?.duration || (isFeed ? 10 : 30)} required /></div></div><div className="modal-actions"><button type="button" className="button button-secondary" onClick={() => setModal(null)}>Cancel</button><button className="button button-primary"><Check /> Save schedule</button></div></form></div></div>}{toast && <Toast message={toast} onClose={() => setToast('')} />}</div>;
+  const node = kind === 'feeding' ? '/feedingSchedules' : '/rinseSchedules';
+  const isFeed = kind === 'feeding';
+  const [items, setItems] = useState<Schedule[]>(isFeed ? demoSchedules : demoRinse);
+  const [modal, setModal] = useState<{ id: string | null; period: FeedingPeriod | null } | null>(null);
+  const [toast, setToast] = useState('');
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => firebaseConfigured ? subscribeToCollection<Schedule>(node, setItems) : undefined, [node]);
+
+  const current = modal?.id ? items.find(item => item.id === modal.id) : undefined;
+  const startNew = (period: FeedingPeriod | null = null) => {
+    setFormError('');
+    setModal({ id: null, period });
+  };
+  const edit = (id: string) => {
+    setFormError('');
+    setModal({ id, period: null });
+  };
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const time = String(data.get('time'));
+    const duration = Number(data.get('duration'));
+    const maxDuration = isFeed ? 60 : 300;
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+      setFormError('Enter a valid time in 24-hour format.');
+      return;
+    }
+    if (!Number.isInteger(duration) || duration < 1 || duration > maxDuration) {
+      setFormError(`Duration must be between 1 and ${maxDuration} seconds.`);
+      return;
+    }
+    if (isFeed) {
+      const selectedPeriod = modal?.period ? feedingPeriods.find(period => period.key === modal.period) : undefined;
+      if (selectedPeriod && (time < selectedPeriod.start || time > selectedPeriod.end)) {
+        setFormError(`Choose a time within ${selectedPeriod.label} (${selectedPeriod.range}).`);
+        return;
+      }
+      if (items.some(item => item.time === time && item.id !== modal?.id)) {
+        setFormError('A feeding routine already exists at this time.');
+        return;
+      }
+    }
+    const value = { time, duration, enabled: current?.enabled ?? true };
+    try {
+      if (firebaseConfigured) {
+        if (modal?.id) {
+          const changed = Object.fromEntries(
+            Object.entries(value).filter(([key, next]) => current?.[key as keyof Schedule] !== next),
+          );
+          if (Object.keys(changed).length) await updateAtPath(`${node}/${modal.id}`, changed);
+        } else {
+          await addWithServerTimestamp(node, value, 'createdAt');
+        }
+      } else if (modal?.id) {
+        setItems(previous => previous.map(item => item.id === modal.id ? { ...item, ...value } : item));
+      } else {
+        setItems(previous => [...previous, { id: `demo-${Date.now()}`, ...value }]);
+      }
+      setModal(null);
+      setFormError('');
+      setToast(isFeed ? 'Feeding routine saved' : 'Rinse schedule saved');
+    } catch {
+      setFormError('Could not save. Check Firebase permissions and the schedule values.');
+    }
+  };
+  const toggle = async (item: Schedule) => {
+    const enabled = !item.enabled;
+    try {
+      if (firebaseConfigured) await updateAtPath(`${node}/${item.id}`, { enabled });
+      setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, enabled } : entry));
+    } catch {
+      setToast('Could not update schedule. Check Firebase permissions.');
+    }
+  };
+  const remove = async (id: string) => {
+    const message = isFeed ? 'Delete this feeding routine?' : 'Delete this rinse schedule?';
+    if (!window.confirm(message)) return;
+    try {
+      if (firebaseConfigured) await removeAtPath(`${node}/${id}`);
+      setItems(previous => previous.filter(item => item.id !== id));
+    } catch {
+      setToast('Could not delete schedule. Check Firebase permissions.');
+    }
+  };
+  const rows = (list: Schedule[]) => list.map(item => (
+    <div className="schedule-row" key={item.id}>
+      <div className="time-block">{item.time}</div>
+      <div className="schedule-main">
+        <div className="schedule-label">{isFeed ? 'Feeding routine' : 'Rinse routine'}</div>
+        <div className="schedule-meta">{item.duration} seconds · {item.enabled ? 'Enabled' : 'Disabled'}</div>
+      </div>
+      <button className={`toggle ${item.enabled ? 'on' : ''}`} onClick={() => toggle(item)} aria-label={`${item.enabled ? 'Disable' : 'Enable'} schedule at ${item.time}`} />
+      <div className="row-actions">
+        <button onClick={() => edit(item.id)} aria-label={`Edit schedule at ${item.time}`}><Pencil /></button>
+        <button onClick={() => remove(item.id)} aria-label={`Delete schedule at ${item.time}`}><Trash2 /></button>
+      </div>
+    </div>
+  ));
+
+  const title = isFeed ? 'Feeding schedules' : 'Rinse cycles';
+  const openNew = () => startNew();
+  return (
+    <div className="page">
+      <PageHeading
+        eyebrow={isFeed ? 'Daily nutrition' : 'Clean water lines'}
+        title={title}
+        subtitle={isFeed ? 'Set the rhythm for consistent, measured feed delivery.' : 'Changes are synchronized to Firebase in realtime.'}
+        action={<button className="button button-primary" onClick={openNew}><Plus /> Add schedule</button>}
+      />
+      {isFeed ? (
+        <div className="feeding-periods">
+          {feedingPeriods.map(period => {
+            const Icon = period.key === 'morning' ? Sun : period.key === 'afternoon' ? SunMedium : Moon;
+            const routines = items
+              .filter(item => periodForTime(item.time) === period.key)
+              .slice()
+              .sort((a, b) => a.time.localeCompare(b.time));
+            return (
+              <section className="panel schedule-card feeding-period" key={period.key}>
+                <div className="panel-header">
+                  <div>
+                    <h2 className="panel-title feeding-period-title"><Icon size={17} /> {period.label}</h2>
+                    <p className="panel-subtitle">{period.range} · {routines.length} {routines.length === 1 ? 'routine' : 'routines'}</p>
+                  </div>
+                  <span className="badge badge-neutral"><CalendarClock size={12} /> 24-hour time</span>
+                </div>
+                <div className="schedule-list">
+                  {routines.length ? rows(routines) : (
+                    <div className="empty feeding-empty">
+                      <CalendarClock />
+                      <h3>No {period.label.toLowerCase()} routines yet</h3>
+                    </div>
+                  )}
+                  <button className="button button-secondary add-routine-button" onClick={() => startNew(period.key)}>
+                    <Plus /> Add routine
+                  </button>
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="panel schedule-card">
+          <div className="panel-header">
+            <div><h2 className="panel-title">{items.length} routines</h2><p className="panel-subtitle">Duration is 1–300 seconds.</p></div>
+            <span className="badge badge-neutral"><CalendarClock size={12} /> 24-hour time</span>
+          </div>
+          <div className="schedule-list">{items.length ? rows(items) : <div className="empty"><CalendarClock /><h3>No schedules yet</h3><p>Add the first routine for this system.</p></div>}</div>
+        </div>
+      )}
+      {modal && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
+            <div className="modal-head">
+              <div><p className="eyebrow">{isFeed ? 'Feeding routine' : 'Rinse routine'}</p><div className="modal-title" id="schedule-modal-title">{modal.id ? 'Edit schedule' : 'Add schedule'}</div></div>
+              <button className="modal-close" onClick={() => setModal(null)} aria-label="Close dialog"><X /></button>
+            </div>
+            <form onSubmit={save}>
+              <div className="form-grid">
+                <div className="field">
+                  <label htmlFor="schedule-time">Start time</label>
+                  <input
+                    id="schedule-time"
+                    name="time"
+                    type="time"
+                    min={modal.period ? feedingPeriods.find(period => period.key === modal.period)?.start : undefined}
+                    max={modal.period ? feedingPeriods.find(period => period.key === modal.period)?.end : undefined}
+                    defaultValue={current?.time || (modal.period ? feedingPeriods.find(period => period.key === modal.period)?.defaultTime : '08:00')}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="schedule-duration">Duration (seconds)</label>
+                  <input id="schedule-duration" name="duration" type="number" min="1" max={isFeed ? 60 : 300} defaultValue={current?.duration ?? (isFeed ? 10 : 30)} required />
+                </div>
+              </div>
+              {formError && <div className="alert schedule-form-error" role="alert">{formError}</div>}
+              <div className="modal-actions">
+                <button type="button" className="button button-secondary" onClick={() => setModal(null)}>Cancel</button>
+                <button className="button button-primary"><Check /> Save schedule</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {toast && <Toast message={toast} onClose={() => setToast('')} />}
+    </div>
+  );
 }
 
 function Manual() {
