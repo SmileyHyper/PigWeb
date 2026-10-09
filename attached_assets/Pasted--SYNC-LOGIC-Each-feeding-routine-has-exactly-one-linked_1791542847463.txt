@@ -1,0 +1,47 @@
+## SYNC LOGIC
+Each feeding routine has exactly one linked rinse routine in the existing rinse schedule node.
+- Link them by using the SAME key/ID for the rinse entry as the feeding entry, so no new field is needed. If the existing schema can't support this, stop and tell me what is missing instead of changing it.
+- Rinse time = feeding time + feeding duration + rinse delay (default 30 minutes), rounded up to the next minute. Wrap past midnight (23:45 feeding, 40 s, +30 min -> 00:16).
+- Rinse duration: default 30 seconds, unless the existing rinse schema already stores one. Allowed 1-60 seconds.
+
+Write the rinse entry automatically whenever the feeding changes:
+- Create feeding -> create rinse
+- Edit feeding time or duration -> recalculate rinse time
+- Toggle feeding enabled/disabled -> the rinse follows (disabled feeding means disabled rinse, never run alone)
+- Delete feeding -> delete the rinse (confirm dialog says: "This will also remove its linked rinse.")
+Use a single Firebase multi-path update so the feeding and rinse are written atomically and can never end up out of sync.
+
+## RINSE CYCLES PAGE
+- Remove the standalone "Add rinse schedule" flow. Rinse entries can't be created or deleted here.
+- Group by the same Morning / Afternoon / Evening sections, based on the FEEDING time (so a rinse at 00:16 stays under its Evening feeding).
+- Each row shows: rinse time (monospace), a "Linked to Feeding 08:00" label, rinse duration, the delay, and the enabled state.
+- Enabled toggle: read-only and shows the feeding's state, with a tooltip "Controlled by the linked feeding".
+- Editable per row: rinse duration (1-60 s) and delay after feeding (5-120 min, default 30). Saving recalculates the rinse time.
+- Feeding rows get a small badge: "Rinse 08:31" (or "Rinse off" when disabled).
+- Page subtitle: "Rinse runs automatically after each feeding."
+- Loading, empty, and error states for all of this.
+
+## VALIDATION
+- Block or warn at save time if a rinse would overlap the next enabled feeding, or another rinse (feeding and rinse must never run at the same time). Show the conflicting times in the error.
+- No two feeding routines at the same time.
+- Duration rules stay as they are (feeding 1-60 s).
+
+## MIGRATION (one time, idempotent)
+Existing feeding routines may have no linked rinse, and existing standalone rinse entries may exist.
+- For each feeding without a rinse, create its linked rinse (disabled if the feeding is disabled).
+- For each old standalone rinse entry, do not delete it silently. List them for me and ask which to keep or remove.
+- Running the migration twice must not create duplicates.
+
+## LOGGING
+Activity logs: "Rinse auto-scheduled for 08:31 (linked to Feeding 08:00)", "Rinse rescheduled", "Rinse removed (feeding deleted)".
+
+## ACCEPTANCE CHECKS
+1. Feeding 08:00 / 40 s / delay 30 -> rinse appears under Morning at 08:31.
+2. Changing that feeding to 09:00 moves the rinse to 09:31 automatically.
+3. Disabling the feeding disables the rinse. Re-enabling restores it.
+4. Deleting the feeding removes its rinse.
+5. Feeding 23:45 / 40 s -> rinse 00:16, shown under Evening.
+6. Saving a conflicting time shows a clear error and writes nothing.
+7. Running the migration twice creates no duplicates.
+8. Rinse page has no standalone create/delete controls.
+9. Give me a short summary of what changed and which Firebase paths are written.
