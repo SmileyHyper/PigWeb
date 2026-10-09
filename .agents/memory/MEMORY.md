@@ -1,0 +1,1 @@
+- [Linked-rinse constraints](linked-rinse-constraints.md) — preserve schema/rules and inspect the real controller before changing execution.
