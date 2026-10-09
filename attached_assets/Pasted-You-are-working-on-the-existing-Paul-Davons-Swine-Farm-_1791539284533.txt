@@ -1,0 +1,88 @@
+You are working on the existing "Paul & Davons Swine Farm Control" web dashboard (Firebase realtime sync). Before changing anything, read the current code for the Feeding page, Rinse cycles page, Firebase data structure, and whatever currently triggers schedules. Keep the existing design system, colors, and 24-hour time format. Do not break Manual control, Monitoring, Activity logs, or Notifications.
+
+## GOAL
+1. Reorganize Feeding schedules into 3 sections: Morning, Afternoon, Evening.
+2. Make rinse cycles dependent on feeding. Rinse is no longer scheduled independently; it runs automatically 30 minutes after a feeding runs.
+
+## 1. FEEDING PAGE: 3 SECTIONS
+
+Replace the flat list with three cards/sections, in this order:
+- Morning (00:00-11:59), sun icon
+- Afternoon (12:00-17:59), sun-high icon
+- Evening (18:00-23:59), moon icon
+
+Each section shows:
+- Header with the section name, time range, and routine count (e.g. "Morning, 2 routines")
+- Its routines, sorted by time ascending
+- Each routine row: time (monospace), duration in seconds, Enabled toggle, edit icon, delete icon (same style as now)
+- An "Add routine" button inside the section, which pre-fills the section's period. The time picker should only allow times within that period, with a clear error if the time is out of range.
+- A friendly empty state ("No morning routines yet")
+
+Sections are assigned automatically from the routine's time, so editing a time can move the routine to another section. Keep the top-right "Add schedule" button too; it should auto-place the routine in the right section based on the time entered.
+
+Validation:
+- Duration is 1-60 seconds (keep the current rule)
+- No two feeding routines at the same time
+- Prevent a feeding from being scheduled so close to another that its linked rinse would overlap the next feeding (see edge cases)
+
+Migrate existing data: current routines (06:00, 08:00, 20:00) must show up in the right sections without being lost. Write a one-time migration if the data structure changes.
+
+## 2. RINSE: DEPENDENT ON FEEDING
+
+Behavior:
+- When a feeding routine is activated (it starts running, on schedule), the system automatically schedules a rinse for 30 minutes after that feeding finishes.
+- Rinse timing: rinse_start = feeding_start + feeding_duration + rinse_delay (default 30 min).
+- Rinse must only run if its feeding actually ran. If the feeding is disabled, skipped, or failed, no rinse is queued.
+- Disabling or deleting a feeding routine also disables or removes its linked rinse.
+
+Data model (Firebase), suggested:
+```
+feedingSchedules/{id}: { time, durationSec, enabled, period }
+rinseSettings/{feedingId}: { enabled, durationSec, delayMinutes: 30 }
+pendingRinses/{runId}: { feedingId, scheduledFor, durationSec, status: "pending"|"running"|"done"|"cancelled"|"failed" }
+```
+Adjust to fit the existing structure. Do not duplicate data.
+
+Rinse cycles page:
+- Remove the standalone "Add rinse schedule" flow.
+- Show the rinse cycles grouped by the same Morning / Afternoon / Evening sections, each rinse labeled "Linked to Feeding 08:00".
+- For each linked rinse, allow editing: Enabled toggle, rinse duration (seconds), and delay after feeding (default 30 min, allowed range 5-120 min).
+- Show a computed "Next rinse at HH:MM" for each (feeding time + feeding duration + delay).
+- Show a "Pending rinses" list with a countdown for rinses queued after a feeding that has already run, plus a Cancel button for each.
+
+Feeding page: on each routine row, show a small badge such as "Rinse +30 min" (or "Rinse off") so the dependency is visible.
+
+## 3. EXECUTION LOGIC (IMPORTANT)
+- The schedule must run reliably even if the browser is closed. Use a server-side or Firebase-side mechanism (Cloud Function, scheduled job, or the device/controller if that is what currently runs schedules). Do not rely on the open dashboard tab.
+- When a feeding starts, create a pendingRinses record with scheduledFor = feeding end + delay. When that time arrives, run the rinse, then mark it done.
+- Make it idempotent: a rinse must never fire twice for one feeding run, even after a restart or a duplicate trigger.
+- Use the Asia/Manila timezone consistently.
+- Manual feeding from Manual control: ask in the UI (or use a setting) whether it should also queue a linked rinse. Default: yes, queue it.
+- On server or device restart, recover any pending rinses: run those still within a grace window (e.g. 10 min late), and mark older ones "missed" and log them.
+
+## 4. EDGE CASES TO HANDLE
+- Midnight rollover: an evening feeding at 23:45 with a 30 min delay rinses at 00:15 the next day.
+- Overlap: if a rinse would land during or after the next feeding's start, warn the user at save time and block or adjust, since feeding and rinse must never run at the same time.
+- Only one actuator action at a time: queue rinse behind any running feeding or manual action.
+- Editing a feeding while its rinse is pending: recalculate or cancel the pending rinse and tell the user.
+- Offline device: show the status and don't mark a rinse "done" unless it was confirmed.
+
+## 5. LOGGING AND NOTIFICATIONS
+- Activity logs: log "Feeding started/completed", "Rinse queued for HH:MM", "Rinse started/completed", "Rinse cancelled/missed".
+- Notifications: notify on rinse failure or a missed rinse.
+
+## 6. UI/UX
+- Keep the current visual style (dark green sidebar, cream cards, green accents, monospace times).
+- Fully responsive. Add loading, empty, and error states.
+- Confirm before deleting a routine, and mention that its linked rinse will be removed too.
+- Update the subtitle text on the Rinse page to: "Rinse runs automatically after each feeding."
+
+## DELIVERABLES / ACCEPTANCE CHECKS
+1. Feeding page shows Morning, Afternoon, and Evening sections, and existing routines land in the right ones.
+2. A new routine added at e.g. 14:00 appears under Afternoon.
+3. With the feeding at 08:00 for 40 sec and delay 30 min, the rinse is queued for 08:30:40 and runs automatically.
+4. Disabling a feeding prevents its rinse.
+5. The standalone rinse scheduling is gone and replaced by linked rinse settings.
+6. The schedule still runs with the dashboard closed.
+7. No duplicate rinse runs, and the midnight rollover works.
+8. Briefly summarize what you changed and any data migration performed.
