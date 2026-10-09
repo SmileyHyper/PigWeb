@@ -1,1 +1,1 @@
-- [Linked-rinse constraints](linked-rinse-constraints.md) — preserve schema/rules and inspect the real controller before changing execution.
+- [Linked-rinse constraints](linked-rinse-constraints.md) — dashboard sync pairs same-key records; hardware execution still needs approved controller source.

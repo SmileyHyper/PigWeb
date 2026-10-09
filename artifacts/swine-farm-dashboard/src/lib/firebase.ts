@@ -9,6 +9,7 @@ import {
 } from 'firebase/auth';
 import {
   getDatabase,
+  get,
   onValue,
   push,
   ref,
@@ -88,12 +89,32 @@ export async function addWithServerTimestamp<T extends Record<string, unknown>>(
 export function subscribeToCollection<T extends Record<string, unknown>>(
   path: string,
   callback: (value: Array<T & { id: string }>) => void,
+  onError?: (error: Error) => void,
 ): Unsubscribe {
   if (!database) return () => undefined;
   return onValue(ref(database, path), (snapshot: DataSnapshot) => {
     const value = snapshot.val() as Record<string, T> | null;
     callback(value ? Object.entries(value).map(([id, item]) => ({ ...item, id })) : []);
-  });
+  }, onError);
+}
+
+export async function readCollection<T extends Record<string, unknown>>(path: string) {
+  if (!database) throw new Error('Firebase Realtime Database is not configured.');
+  const snapshot = await get(ref(database, path));
+  const value = snapshot.val() as Record<string, T> | null;
+  return value ? Object.entries(value).map(([id, item]) => ({ ...item, id })) : [];
+}
+
+export function createPushKey(path: string) {
+  if (!database) throw new Error('Firebase Realtime Database is not configured.');
+  const key = push(ref(database, path)).key;
+  if (!key) throw new Error('Could not generate a Firebase record key.');
+  return key;
+}
+
+export async function updateMultiplePaths(values: Record<string, unknown>) {
+  if (!database) throw new Error('Firebase Realtime Database is not configured.');
+  await update(ref(database), values);
 }
 
 export async function initializeDatabase() {
