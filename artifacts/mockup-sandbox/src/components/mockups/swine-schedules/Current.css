@@ -1,0 +1,169 @@
+.swine-schedule-mock .mock-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.swine-schedule-mock .mock-eyebrow {
+  margin: 0 0 8px;
+  color: hsl(var(--primary));
+  font: 10px var(--app-font-mono);
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.swine-schedule-mock .mock-heading h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -.05em;
+}
+
+.swine-schedule-mock .mock-lede {
+  margin: 8px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}
+
+.swine-schedule-mock .mock-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px;
+  background: hsl(var(--card));
+}
+
+.swine-schedule-mock .mock-tabs button {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font: 600 11px var(--app-font-sans);
+  cursor: pointer;
+}
+
+.swine-schedule-mock .mock-tabs button.active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.swine-schedule-mock .mock-periods { display: grid; gap: 14px; }
+
+.swine-schedule-mock .mock-period {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid hsl(var(--card-border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 6px 18px rgba(63, 75, 49, .035);
+}
+
+.swine-schedule-mock .mock-period-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.swine-schedule-mock .mock-period-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.swine-schedule-mock .mock-period-title svg { color: hsl(var(--primary)); }
+
+.swine-schedule-mock .mock-period-subtitle {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.swine-schedule-mock .mock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 99px;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font: 10px var(--app-font-mono);
+  white-space: nowrap;
+}
+
+.swine-schedule-mock .mock-badge.success {
+  background: #e2eee5;
+  color: #326348;
+}
+
+.swine-schedule-mock .mock-list { display: grid; gap: 10px; }
+
+.swine-schedule-mock .mock-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px;
+}
+
+.swine-schedule-mock .mock-time {
+  min-width: 62px;
+  color: hsl(var(--primary));
+  font: 700 14px var(--app-font-mono);
+}
+
+.swine-schedule-mock .mock-main { min-width: 0; flex: 1; }
+.swine-schedule-mock .mock-label { font-size: 12px; font-weight: 700; }
+.swine-schedule-mock .mock-meta { margin-top: 4px; color: hsl(var(--muted-foreground)); font-size: 10px; }
+
+.swine-schedule-mock .mock-switch {
+  width: 36px;
+  height: 20px;
+  border: 0;
+  border-radius: 99px;
+  background: hsl(var(--primary));
+  padding: 2px;
+}
+
+.swine-schedule-mock .mock-switch::after {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: hsl(var(--card));
+  box-shadow: 0 1px 2px #0002;
+  content: '';
+}
+
+.swine-schedule-mock .mock-actions { display: flex; gap: 3px; }
+.swine-schedule-mock .mock-actions button { padding: 5px; border: 0; background: transparent; color: hsl(var(--muted-foreground)); }
+.swine-schedule-mock .mock-actions svg { width: 14px; height: 14px; }
+.swine-schedule-mock .mock-add {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 2px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 8px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: 700 12px var(--app-font-sans);
+}
+.swine-schedule-mock .mock-empty { padding: 26px 14px; text-align: center; color: hsl(var(--muted-foreground)); font-size: 11px; }
+.swine-schedule-mock .mock-empty svg { width: 24px; height: 24px; margin-bottom: 8px; color: hsl(var(--primary)); }
+.swine-schedule-mock .mock-note { margin: 0 0 18px; color: hsl(var(--muted-foreground)); font-size: 11px; }
+
+@media (max-width: 760px) {
+  .swine-schedule-mock .mock-heading { flex-direction: column; }
+  .swine-schedule-mock .mock-row { flex-wrap: wrap; }
+  .swine-schedule-mock .mock-main { flex-basis: calc(100% - 80px); }
+}

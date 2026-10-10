@@ -300,7 +300,61 @@ function SettingsPage() {
   return <div className="page"><PageHeading eyebrow="Farm configuration" title="Settings" subtitle="The singleton settings node is updated without overwriting fields outside this form." action={<button className="button button-secondary" onClick={setup}><DatabaseIcon /> Initialize database</button>} /><div className="panel settings-content"><div className="settings-section"><h2>Farm profile</h2><p>These values are stored under /settings.</p><div className="form-grid">{[['farmerName', 'Farmer name'], ['farmerPhone', 'Farmer phone'], ['timezone', 'Timezone']].map(([key, label]) => <div className="field" key={key}><label htmlFor={key}>{label}</label><input id={key} value={String(form[key as keyof Settings])} onChange={e => change(key as keyof Settings, e.target.value)} /></div>)}</div></div><div className="settings-section"><h2>Controller limits</h2><div className="form-grid">{[['lowFeedThreshold', 'Low feed threshold (%)'], ['containerHeightCm', 'Container height (cm)'], ['emptyDistanceCm', 'Empty distance (cm)'], ['fullDistanceCm', 'Full distance (cm)'], ['feederMaxRuntimeSec', 'Feeder max runtime (sec)'], ['pumpMaxRuntimeSec', 'Pump max runtime (sec)']].map(([key, label]) => <div className="field" key={key}><label htmlFor={key}>{label}</label><input id={key} type="number" value={Number(form[key as keyof Settings])} onChange={e => change(key as keyof Settings, e.target.value)} /></div>)}</div><div className="switch-line"><div><strong>System enabled</strong><small>Allow the controller to operate scheduled routines.</small></div><button className={`toggle ${form.systemEnabled ? 'on' : ''}`} onClick={() => change('systemEnabled', !form.systemEnabled)} aria-label="Toggle system enabled" /></div></div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}><button className="button button-primary" onClick={save}><Check /> Save changes</button></div></div>{toast && <Toast message={toast} onClose={() => setToast('')} />}</div>;
 }
 function DatabaseIcon() { return <FileText size={16} />; }
-function Login() { const [, setLocation] = useLocation(); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const data = new FormData(event.currentTarget); const email = String(data.get('email')); const password = String(data.get('password')); setBusy(true); setError(''); try { if (firebaseConfigured) await signIn(email, password); else localStorage.setItem('sfd-auth', 'signedIn'); setLocation('/'); } catch { setError('We could not sign you in. Check your details or Firebase permissions.'); } finally { setBusy(false); } }; return <div className="login-page"><div className="login-visual"><Brand /><div className="login-quote">Smart Feed, Smart Farm</div><div className="login-note">Swine Farm Control keeps the small, important signals close.</div></div><div className="login-form-wrap"><form className="login-form" onSubmit={submit}><p className="eyebrow">Swine Farm Control</p><h1>Welcome back.</h1><p className="lede">Sign in to your farm control room.</p>{error && <div className="alert">{error}</div>}<div className="field"><label htmlFor="login-email">Email address</label><input id="login-email" name="email" type="email" autoComplete="email" required /></div><div className="field"><label htmlFor="login-password">Password</label><input id="login-password" name="password" type="password" autoComplete="current-password" minLength={6} required /></div><button className="button button-primary" style={{ width: '100%', marginTop: 22 }} disabled={busy}><ShieldCheck /> {busy ? 'Checking credentials…' : 'Sign in securely'}</button><p className="login-help">{firebaseConfigured ? 'Protected by Firebase Authentication.' : 'Demo mode is active until Firebase variables are added.'}</p></form></div></div>; }
+function Login() {
+  const [, setLocation] = useLocation();
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const email = String(data.get('email'));
+    const password = String(data.get('password'));
+    setBusy(true);
+    setError('');
+    try {
+      if (firebaseConfigured) await signIn(email, password);
+      else localStorage.setItem('sfd-auth', 'signedIn');
+      setLocation('/');
+    } catch {
+      setError('We could not sign you in. Check your details or Firebase permissions.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="login-page">
+      <div className="login-visual">
+        <Brand />
+        <div className="login-quote text-left text-[84px]">Smart Feed, Smart Farm</div>
+        <div className="login-note">Swine Farm Control keeps the small, important signals close.</div>
+      </div>
+      <div className="login-form-wrap">
+        <form className="login-form" onSubmit={submit}>
+          <p className="eyebrow">Swine Farm Control</p>
+          <h1>Welcome back.</h1>
+          <p className="lede">Sign in to your farm control room.</p>
+          {error && <div className="alert">{error}</div>}
+          <div className="field">
+            <label htmlFor="login-email">Email address</label>
+            <input id="login-email" name="email" type="email" autoComplete="email" required />
+          </div>
+          <div className="field">
+            <label htmlFor="login-password">Password</label>
+            <input id="login-password" name="password" type="password" autoComplete="current-password" minLength={6} required />
+          </div>
+          <button className="button button-primary" style={{ width: '100%', marginTop: 22 }} disabled={busy}>
+            <ShieldCheck /> {busy ? 'Checking credentials…' : 'Sign in securely'}
+          </button>
+          <p className="login-help">
+            {firebaseConfigured ? 'Protected by Firebase Authentication.' : 'Demo mode is active until Firebase variables are added.'}
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}
 function NotFound() { return <div className="page"><div className="empty"><CircleHelp /><h3>Page not found</h3><Link href="/" className="button button-primary">Back to control room</Link></div></div>; }
 function Protected({ children }: { children: ReactNode }) { const [location, setLocation] = useLocation(); const [user, setUser] = useState<unknown>(firebaseConfigured ? undefined : localStorage.getItem('sfd-auth') ? { demo: true } : null); const [ready, setReady] = useState(!firebaseConfigured); useEffect(() => firebaseConfigured ? subscribeToAuth(next => { setUser(next); setReady(true); }) : undefined, []); useEffect(() => { if (ready && !user && location !== '/login') setLocation('/login'); }, [ready, user, location, setLocation]); if (!ready || !user) return null; return <Shell>{children}</Shell>; }
 function Router() { return <Switch><Route path="/login" component={Login} /><Route path="/"><Protected><Overview /></Protected></Route><Route path="/feeding"><Protected><FeedingSchedulesPage /></Protected></Route><Route path="/rinse"><Protected><RinseSchedulesPage /></Protected></Route><Route path="/manual"><Protected><Manual /></Protected></Route><Route path="/monitoring"><Protected><Monitoring /></Protected></Route><Route path="/logs"><Protected><Logs /></Protected></Route><Route path="/notifications"><Protected><Notifications /></Protected></Route><Route path="/settings"><Protected><SettingsPage /></Protected></Route><Route component={NotFound} /></Switch>; }

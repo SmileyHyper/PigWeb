@@ -16,9 +16,9 @@ export const FEEDING_PERIODS: {
   end: string;
   defaultTime: string;
 }[] = [
-  { key: 'morning', label: 'Morning', range: '00:00–11:59', start: '00:00', end: '11:59', defaultTime: '06:00' },
-  { key: 'afternoon', label: 'Afternoon', range: '12:00–17:59', start: '12:00', end: '17:59', defaultTime: '12:00' },
-  { key: 'evening', label: 'Evening', range: '18:00–23:59', start: '18:00', end: '23:59', defaultTime: '18:00' },
+  { key: 'morning', label: 'Morning', range: '00:00–09:59', start: '00:00', end: '09:59', defaultTime: '06:00' },
+  { key: 'afternoon', label: 'Afternoon', range: '10:00–14:59', start: '10:00', end: '14:59', defaultTime: '10:00' },
+  { key: 'evening', label: 'Evening', range: '15:00–23:59', start: '15:00', end: '23:59', defaultTime: '15:00' },
 ];
 
 export const DEFAULT_RINSE_DELAY_MINUTES = 30;
@@ -36,8 +36,8 @@ function timeToMinutes(time: string) {
 export function periodForTime(time: string): FeedingPeriod | null {
   const minutes = timeToMinutes(time);
   if (minutes === null) return null;
-  if (minutes < 12 * 60) return 'morning';
-  if (minutes < 18 * 60) return 'afternoon';
+  if (minutes < 10 * 60) return 'morning';
+  if (minutes < 15 * 60) return 'afternoon';
   return 'evening';
 }
 
