@@ -1,0 +1,59 @@
+Task: Re-organize the Feeding schedules page of the "Paul & Davons Swine Farm
+Control" dashboard to match my hand-drawn layout. Keep the existing design,
+colors, 24-hour time format, and the existing Morning / Afternoon / Evening
+section cards. Do not change Firebase security rules, controller code, or add
+any scheduler. Do not touch Manual control, Monitoring, Activity logs, or
+Notifications.
+
+## 1. NEW SECTION TIME RANGES (update header text and grouping logic)
+- Morning:   00:00-09:59
+- Afternoon: 10:00-14:59
+- Evening:   15:00-23:59
+Routines are placed automatically by their time. Editing a time can move it
+to another section. The time picker in each section's "Add routine" must only
+accept times inside that section's range, with a clear error otherwise.
+
+## 2. TARGET DAILY SET (from my sketch)
+- Morning:   06:00, 07:00, 08:00
+- Afternoon: 10:00, 11:00, 12:00
+- Evening:   15:00, 16:00, 17:00
+Each is a "Feeding routine" with a default duration of 10 seconds.
+
+## 3. ONE-TIME, IDEMPOTENT SYNC OF EXISTING DATA
+- Before changing anything, list the current routines and summarize how they
+  are stored (5 lines).
+- For each target time above that does not exist yet, create it DISABLED with
+  10 seconds. Never create duplicates; running this twice must change nothing.
+- Do NOT change the enabled state, duration, or time of any existing routine
+  (e.g. 08:00 currently has 40 seconds; keep it).
+- Existing routines that are not in the target set (13:00, 14:00, 20:00,
+  21:00) must stay untouched. List them and ask me whether to keep or remove
+  each one before deleting anything.
+
+## 4. LAYOUT
+- Each section shows its range and routine count in the header, routines
+  sorted by time, and the existing "Add routine" button.
+- Each routine card keeps: time (monospace), "Feeding routine", duration and
+  Enabled/Disabled text, toggle, edit, delete.
+- Add a subtle slot indicator in each header, e.g. "3 of 3 target slots set".
+- Keep the top-right "Add schedule" button; it auto-places by time.
+
+## 5. VALIDATION
+- Duration 1-60 seconds (unchanged). No two routines at the same time.
+- Warn at save time if a linked rinse (feeding end + 30 min) would overlap
+  the next enabled feeding.
+
+## 6. RINSE LINK (only if the rinse sync from my earlier prompt is already
+implemented; otherwise skip and tell me)
+- The rinse time for each feeding is feeding time + duration + 30 minutes.
+  Example: 12:00 / 10 s -> 12:31. Re-check that it still maps to the correct
+  section after the new ranges.
+
+## ACCEPTANCE CHECKS
+1. All three sections show the new ranges in their headers.
+2. 10:00, 11:00, 12:00 appear under Afternoon; 15:00, 16:00, 17:00 under
+   Evening; 06:00, 07:00, 08:00 under Morning.
+3. Newly created slots are disabled; existing routines are unchanged.
+4. Running the sync twice creates no duplicates.
+5. Adding 09:30 is rejected in Afternoon with a clear range error.
+6. Summarize what changed and which Firebase paths were written.
