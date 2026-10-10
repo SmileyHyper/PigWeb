@@ -85,10 +85,34 @@ function useScheduleData() {
 
 const PERIOD_ICONS = { morning: Sunrise, afternoon: Sun, evening: Moon } as const;
 
+function formatTime12Hour(time: string): string {
+  const [hours, minutes] = time.split(':').map(Number);
+
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return time;
+  }
+
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+
+  return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
 function periodSpan(times: string[]) {
   if (!times.length) return null;
+
   const sorted = [...times].sort();
-  return sorted[0] === sorted[sorted.length - 1] ? sorted[0] : `${sorted[0]}–${sorted[sorted.length - 1]}`;
+
+  return sorted[0] === sorted[sorted.length - 1]
+    ? formatTime12Hour(sorted[0])
+    : `${formatTime12Hour(sorted[0])}–${formatTime12Hour(sorted[sorted.length - 1])}`;
 }
 
 function ScheduleHeading({ kind, action }: { kind: SchedulePageKind; action?: ReactNode }) {
@@ -121,7 +145,6 @@ function ColumnIntro({ kind }: { kind: SchedulePageKind }) {
         <h2>{kind === 'feeding' ? 'Feed routines by day part' : 'Linked rinse routines by day part'}</h2>
         <p>{kind === 'feeding' ? 'Each feeding card includes its scheduled rinse.' : 'Each rinse card names the feeding routine it follows.'}</p>
       </div>
-      <span className="display-note"><Clock3 size={11} /> 24-HOUR TIME</span>
     </div>
   );
 }
@@ -805,7 +828,7 @@ function FeedingSchedules({
                     >
                       <div className="routine-card-top">
                         <div>
-                          <div className="routine-time">{feed.time}</div>
+                          <div className="routine-time">{formatTime12Hour(feed.time)}</div>
                           <div className="routine-kind">Feeding routine</div>
                         </div>
                         <div className="routine-controls">
@@ -880,7 +903,16 @@ function FeedModal({
           <div className="form-grid">
             <div className="field">
               <label htmlFor="schedule-time">Feeding time</label>
-              <input id="schedule-time" name="time" type="time" min={selectedPeriod?.start} max={selectedPeriod?.end} defaultValue={current?.time ?? selectedPeriod?.defaultTime ?? '08:00'} required />
+              <input
+                id="schedule-time"
+                name="time"
+                type="time"
+                step="60"
+                min={selectedPeriod?.start}
+                max={selectedPeriod?.end}
+                defaultValue={current?.time ?? selectedPeriod?.defaultTime ?? '08:00'}
+                required
+              />
             </div>
             <div className="field">
               <label htmlFor="schedule-duration">Feeding duration (seconds)</label>
@@ -1098,7 +1130,10 @@ function RinseSchedules({
                     >
                       <div className="routine-card-top">
                         <div>
-                          <div className="routine-time">{rinse?.time ?? '—'}</div>
+                          <div className="routine-time">
+                            {rinse ? formatTime12Hour(rinse.time) : '—'}
+                          </div>
+
                           <div className="routine-kind">Rinse routine</div>
                         </div>
                         <div className="routine-controls">
