@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/swine-rinse-scheduler/"
+title = "Paul & Davons Rinse Scheduler"
+description = "A standalone authenticated schedule app for Paul & Davons. It displays feeding routines by day part and their linked rinse cycles using the existing Firebase Realtime Database paths, without changing the deployed schema or Security Rules."
+version = "1.0.0"
+id = "artifacts/swine-rinse-scheduler"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/swine-rinse-scheduler/" ]
+localPort = 25984
+
+[services.development]
+run = "pnpm --filter @workspace/swine-rinse-scheduler run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/swine-rinse-scheduler", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/swine-rinse-scheduler/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25984"
+BASE_PATH = "/swine-rinse-scheduler/"
