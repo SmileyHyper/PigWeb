@@ -854,7 +854,11 @@ function FeedingSchedules({
                       <div className={`linked-rinse ${rinse ? '' : 'is-missing'}`} title={`Linked rinse: ${getRinseDetails(feed, rinse)}`}>
                         <span className="linked-rinse-label"><Droplets size={12} /> Linked rinse {feed.enabled && rinse && <ArrowRight size={11} />}</span>
                         <span className="linked-rinse-time">
-                          {!rinse ? 'Needs review' : feed.enabled ? rinse.time : 'Off'}
+                          {!rinse
+                            ? 'Needs review'
+                            : feed.enabled
+                              ? formatTime12Hour(rinse.time)
+                              : 'Off'}
                         </span>
                       </div>
                     </article>
@@ -1153,7 +1157,7 @@ function RinseSchedules({
                       </div>
                       <div className="source-feed">
                         <span>Source feeding</span>
-                        <strong>{feed.time}</strong>
+                        <strong>{formatTime12Hour(feed.time)}</strong>
                       </div>
                       <div className="rinse-meta">
                         {rinse
