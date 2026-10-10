@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import {
-  AlertTriangle, CalendarClock, Check, Link2, LoaderCircle, Moon, Pencil, Plus,
-  RefreshCw, Sun, SunMedium, Trash2, Waves, X,
+  ArrowRight, CalendarClock, Check, Clock3, Droplets, Leaf, Link2, LoaderCircle, Moon,
+  Pencil, Plus, RefreshCw, Sun, Sunrise, Trash2, Waves, X,
 } from 'lucide-react';
 import {
   createPushKey, firebaseConfigured, readCollection, subscribeToCollection,
@@ -83,20 +83,80 @@ function useScheduleData() {
   return { feeds, setFeeds, rinses, setRinses, loading, error };
 }
 
-function Heading({ eyebrow, title, subtitle, action }: {
-  eyebrow: string;
-  title: string;
-  subtitle: string;
-  action?: ReactNode;
-}) {
+const PERIOD_ICONS = { morning: Sunrise, afternoon: Sun, evening: Moon } as const;
+
+function periodSpan(times: string[]) {
+  if (!times.length) return null;
+  const sorted = [...times].sort();
+  return sorted[0] === sorted[sorted.length - 1] ? sorted[0] : `${sorted[0]}–${sorted[sorted.length - 1]}`;
+}
+
+function ScheduleHeading({ kind, action }: { kind: SchedulePageKind; action?: ReactNode }) {
   return (
-    <div className="page-heading">
-      <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
-        <p className="lede">{subtitle}</p>
+    <header className="schedule-heading">
+      <div className="heading-copy">
+        <p className="eyebrow">Routine management</p>
+        <h1>{kind === 'feeding' ? 'Feeding schedule' : 'Rinse schedule'}</h1>
+        <p className="lede">Daily routines, grouped by the part of the day they belong to.</p>
       </div>
-      {action}
+      <div className="schedule-heading-actions">
+        <nav className="schedule-tabs" aria-label="Schedule type">
+          <Link href="/feeding" className={kind === 'feeding' ? 'active' : ''} aria-current={kind === 'feeding' ? 'page' : undefined}>
+            <Leaf size={14} /> Feeding
+          </Link>
+          <Link href="/rinse" className={kind === 'rinse' ? 'active' : ''} aria-current={kind === 'rinse' ? 'page' : undefined}>
+            <Waves size={14} /> Rinse
+          </Link>
+        </nav>
+        {action}
+      </div>
+    </header>
+  );
+}
+
+function ColumnIntro({ kind }: { kind: SchedulePageKind }) {
+  return (
+    <div className="column-intro">
+      <div>
+        <h2>{kind === 'feeding' ? 'Feed routines by day part' : 'Linked rinse routines by day part'}</h2>
+        <p>{kind === 'feeding' ? 'Each feeding card includes its scheduled rinse.' : 'Each rinse card names the feeding routine it follows.'}</p>
+      </div>
+      <span className="display-note"><Clock3 size={11} /> 24-HOUR TIME</span>
+    </div>
+  );
+}
+
+function DaypartHead({ period, count, span }: {
+  period: (typeof FEEDING_PERIODS)[number];
+  count: number;
+  span: string | null;
+}) {
+  const Icon = PERIOD_ICONS[period.key];
+  return (
+    <header className="daypart-head">
+      <div>
+        <h2 className="daypart-name" id={`daypart-${period.key}`}>
+          <span className="daypart-symbol"><Icon size={15} strokeWidth={1.8} /></span>
+          {period.label}
+        </h2>
+        {span && <p className="daypart-range">{span}</p>}
+      </div>
+      <span className="routine-count">{count} {count === 1 ? 'routine' : 'routines'}</span>
+    </header>
+  );
+}
+
+function ScheduleSkeleton() {
+  return (
+    <div className="daypart-grid" role="status" aria-busy="true" aria-label="Loading feeding and rinse schedules">
+      {FEEDING_PERIODS.map((period) => (
+        <section className="daypart-column" key={period.key}>
+          <div className="skeleton skeleton-head" />
+          <div className="routine-stack">
+            {[0, 1, 2].map((item) => <div className="skeleton skeleton-card" key={item} />)}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
@@ -628,7 +688,7 @@ function ScheduleManager({ kind }: { kind: SchedulePageKind }) {
   };
 
   const readyState = loading
-    ? <div className="panel schedule-loading"><LoaderCircle className="spin" /><span>Loading feeding and rinse schedules…</span></div>
+    ? <><ColumnIntro kind={kind} /><ScheduleSkeleton /></>
     : loadError
       ? <div className="panel schedule-state"><InlineAlert>{loadError}</InlineAlert><button className="button button-secondary" onClick={() => window.location.reload()}><RefreshCw /> Retry</button></div>
       : null;
@@ -665,9 +725,12 @@ function ScheduleManager({ kind }: { kind: SchedulePageKind }) {
 
   return (
     <div className="page">
-      {kind === 'feeding'
-        ? <Heading eyebrow="Daily nutrition" title="Feeding schedules" subtitle="Set the rhythm for consistent, measured feed delivery." action={<button className="button button-primary" onClick={() => openFeedModal(null)} disabled={controlsLocked}><Plus /> Add schedule</button>} />
-        : <Heading eyebrow="Linked rinse schedules" title="Rinse cycles" subtitle="Rinse schedules are linked to their feeding routines." />}
+      <ScheduleHeading
+        kind={kind}
+        action={kind === 'feeding'
+          ? <button type="button" className="button button-primary" onClick={() => openFeedModal(null)} disabled={controlsLocked}><Plus /> Add schedule</button>
+          : undefined}
+      />
       {!firebaseConfigured && (
         <InlineAlert kind="info">
           Demo mode. Changes stay in this browser and are not written to Firebase.
@@ -720,64 +783,76 @@ function FeedingSchedules({
 }) {
   const invalidTimes = feeds.filter((feed) => periodForTime(feed.time) === null);
   return (
-    <div className="feeding-periods">
-      {FEEDING_PERIODS.map((period) => {
-        const Icon = period.key === 'morning' ? Sun : period.key === 'afternoon' ? SunMedium : Moon;
-        const routines = feeds
-          .filter((feed) => periodForTime(feed.time) === period.key)
-          .slice()
-          .sort((a, b) => a.time.localeCompare(b.time));
-        return (
-          <section className="panel schedule-card feeding-period" key={period.key}>
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title feeding-period-title"><Icon size={17} /> {period.label}</h2>
-                <p className="panel-subtitle">{period.range} · {routines.length} {routines.length === 1 ? 'routine' : 'routines'}</p>
+    <>
+      <ColumnIntro kind="feeding" />
+      <div className="daypart-grid">
+        {FEEDING_PERIODS.map((period) => {
+          const routines = feeds
+            .filter((feed) => periodForTime(feed.time) === period.key)
+            .slice()
+            .sort((a, b) => a.time.localeCompare(b.time));
+          return (
+            <section className="daypart-column" key={period.key} aria-labelledby={`daypart-${period.key}`}>
+              <DaypartHead period={period} count={routines.length} span={periodSpan(routines.map((feed) => feed.time))} />
+              <div className="routine-stack">
+                {routines.length ? routines.map((feed, index) => {
+                  const rinse = rinsesById.get(feed.id);
+                  return (
+                    <article
+                      className={`routine-card ${feed.enabled ? '' : 'is-muted'}`}
+                      key={feed.id}
+                      style={{ animationDelay: `${index * 35}ms` }}
+                    >
+                      <div className="routine-card-top">
+                        <div>
+                          <div className="routine-time">{feed.time}</div>
+                          <div className="routine-kind">Feeding routine</div>
+                        </div>
+                        <div className="routine-controls">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={feed.enabled}
+                            className={`toggle ${feed.enabled ? 'on' : ''}`}
+                            disabled={busy}
+                            onClick={() => onToggle(feed)}
+                            aria-label={`${feed.enabled ? 'Disable' : 'Enable'} feeding at ${feed.time}; linked rinse follows`}
+                          />
+                          <div className="row-actions">
+                            <button type="button" disabled={busy} onClick={() => onEdit(feed)} aria-label={`Edit feeding at ${feed.time}`}><Pencil /></button>
+                            <button type="button" disabled={busy} onClick={() => onDelete(feed)} aria-label={`Delete feeding at ${feed.time}`}><Trash2 /></button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="routine-meta">
+                        <span>{feed.duration} sec feed</span>
+                        <span>{feed.enabled ? 'Enabled' : 'Disabled'}</span>
+                      </div>
+                      <div className={`linked-rinse ${rinse ? '' : 'is-missing'}`} title={`Linked rinse: ${getRinseDetails(feed, rinse)}`}>
+                        <span className="linked-rinse-label"><Droplets size={12} /> Linked rinse {feed.enabled && rinse && <ArrowRight size={11} />}</span>
+                        <span className="linked-rinse-time">
+                          {!rinse ? 'Needs review' : feed.enabled ? rinse.time : 'Off'}
+                        </span>
+                      </div>
+                    </article>
+                  );
+                }) : (
+                  <div className="daypart-empty"><CalendarClock /><p>No {period.label.toLowerCase()} routines yet</p></div>
+                )}
               </div>
-              <span className="badge badge-neutral"><CalendarClock size={12} /> 24-hour time</span>
-            </div>
-            <div className="schedule-list">
-              {routines.length ? routines.map((feed) => {
-                const rinse = rinsesById.get(feed.id);
-                return (
-                  <div className="schedule-row linked-feed-row" key={feed.id}>
-                    <div className="time-block">{feed.time}</div>
-                    <div className="schedule-main">
-                      <div className="schedule-label">Feeding routine</div>
-                      <div className="schedule-meta">{feed.duration} seconds · {feed.enabled ? 'Enabled' : 'Disabled'}</div>
-                    </div>
-                    <span className={`badge ${rinse ? 'badge-neutral' : 'badge-warning'}`} title={`Linked rinse: ${getRinseDetails(feed, rinse)}`}>
-                      <Link2 size={12} /> {feed.enabled ? (rinse ? `Rinse ${rinse.time}` : 'Rinse link missing') : 'Rinse off'}
-                    </span>
-                    <button
-                      type="button"
-                      className={`toggle ${feed.enabled ? 'on' : ''}`}
-                      disabled={busy}
-                      onClick={() => onToggle(feed)}
-                      aria-label={`${feed.enabled ? 'Disable' : 'Enable'} feeding at ${feed.time}; linked rinse follows`}
-                    />
-                    <div className="row-actions">
-                      <button type="button" disabled={busy} onClick={() => onEdit(feed)} aria-label={`Edit feeding at ${feed.time}`}><Pencil /></button>
-                      <button type="button" disabled={busy} onClick={() => onDelete(feed)} aria-label={`Delete feeding at ${feed.time}`}><Trash2 /></button>
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className="empty feeding-empty"><CalendarClock /><h3>No {period.label.toLowerCase()} routines yet</h3></div>
-              )}
               <button type="button" className="button button-secondary add-routine-button" disabled={busy} onClick={() => onAdd(period.key)}>
                 <Plus /> Add routine
               </button>
-            </div>
-          </section>
-        );
-      })}
+            </section>
+          );
+        })}
+      </div>
       {invalidTimes.length > 0 && (
         <InlineAlert>
           {invalidTimes.length} feeding record(s) have an invalid time and cannot be grouped: {invalidTimes.map((feed) => `${feed.id} (${feed.time})`).join(', ')}.
         </InlineAlert>
       )}
-    </div>
+    </>
   );
 }
 
@@ -853,10 +928,6 @@ function RinseSchedules({
 
   return (
     <div className="rinse-schedule-page">
-      <div className="panel schedule-disclaimer">
-        <Waves size={17} />
-        <p>This dashboard stores linked rinse schedules. It does not confirm that physical equipment has run.</p>
-      </div>
       {hasMigration && (
         <section className="panel migration-panel" aria-labelledby="migration-title">
           <div className="panel-header">
@@ -1008,53 +1079,65 @@ function RinseSchedules({
       {feeds.length === 0 && !hasMigration && (
         <div className="panel empty"><Waves /><h3>No feeding routines to link yet</h3><p>Add a feeding routine first; its linked rinse schedule will use the same key.</p></div>
       )}
-      {FEEDING_PERIODS.map((period) => {
-        const Icon = period.key === 'morning' ? Sun : period.key === 'afternoon' ? SunMedium : Moon;
-        const routines = feeds.filter((feed) => periodForTime(feed.time) === period.key).sort((a, b) => a.time.localeCompare(b.time));
-        return (
-          <section className="panel schedule-card feeding-period" key={period.key}>
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title feeding-period-title"><Icon size={17} /> {period.label}</h2>
-                <p className="panel-subtitle">By feeding time · {routines.length} linked routine{routines.length === 1 ? '' : 's'}</p>
-              </div>
-              <span className="badge badge-neutral"><CalendarClock size={12} /> 24-hour time</span>
-            </div>
-            <div className="schedule-list">
-              {routines.length ? routines.map((feed) => {
-                const rinse = rinsesById.get(feed.id);
-                const delay = rinse ? inferRinseDelayMinutes(feed, rinse) : null;
-                return (
-                  <div className="schedule-row linked-rinse-row" key={feed.id}>
-                    <div className="time-block">{rinse?.time ?? '—'}</div>
-                    <div className="schedule-main">
-                      <div className="schedule-label">{rinse ? `Linked to Feeding ${feed.time}` : `Rinse link missing for Feeding ${feed.time}`}</div>
-                      <div className="schedule-meta">
-                        {rinse ? `${rinse.duration} sec · ${delay ?? 'Delay needs review'} min delay` : 'Needs migration review'}
+      <ColumnIntro kind="rinse" />
+      <div className="daypart-grid">
+        {FEEDING_PERIODS.map((period) => {
+          const routines = feeds.filter((feed) => periodForTime(feed.time) === period.key).sort((a, b) => a.time.localeCompare(b.time));
+          return (
+            <section className="daypart-column" key={period.key} aria-labelledby={`daypart-${period.key}`}>
+              <DaypartHead period={period} count={routines.length} span={periodSpan(routines.map((feed) => feed.time))} />
+              <div className="routine-stack">
+                {routines.length ? routines.map((feed, index) => {
+                  const rinse = rinsesById.get(feed.id);
+                  const delay = rinse ? inferRinseDelayMinutes(feed, rinse) : null;
+                  return (
+                    <article
+                      className={`routine-card ${feed.enabled ? '' : 'is-muted'}`}
+                      key={feed.id}
+                      style={{ animationDelay: `${index * 35}ms` }}
+                    >
+                      <div className="routine-card-top">
+                        <div>
+                          <div className="routine-time">{rinse?.time ?? '—'}</div>
+                          <div className="routine-kind">Rinse routine</div>
+                        </div>
+                        <div className="routine-controls">
+                          <button
+                            type="button"
+                            className={`toggle linked-rinse-toggle ${feed.enabled ? 'on' : ''}`}
+                            disabled
+                            role="switch"
+                            aria-checked={feed.enabled}
+                            title="Controlled by the linked feeding"
+                            aria-label={`Rinse schedule ${feed.enabled ? 'enabled' : 'disabled'} because Feeding ${feed.time} is ${feed.enabled ? 'enabled' : 'disabled'}`}
+                          />
+                          <div className="row-actions">
+                            {rinse && <button type="button" disabled={busy} onClick={() => onEdit(feed.id)} aria-label={`Edit rinse linked to feeding at ${feed.time}`}><Pencil /></button>}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      className={`toggle linked-rinse-toggle ${feed.enabled ? 'on' : ''}`}
-                      disabled
-                      role="switch"
-                      aria-checked={feed.enabled}
-                      title="Controlled by the linked feeding"
-                      aria-label={`Rinse schedule ${feed.enabled ? 'enabled' : 'disabled'} because Feeding ${feed.time} is ${feed.enabled ? 'enabled' : 'disabled'}`}
-                    />
-                    <span className={`badge ${feed.enabled ? 'badge-success' : 'badge-neutral'}`}>{feed.enabled ? 'Scheduled' : 'Rinse off'}</span>
-                    <div className="row-actions">
-                      {rinse && <button type="button" onClick={() => onEdit(feed.id)} aria-label={`Edit rinse linked to feeding at ${feed.time}`}><Pencil /></button>}
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className="empty feeding-empty"><Waves /><h3>No {period.label.toLowerCase()} feeding routines</h3><p>Rinse cycles are grouped by their feeding time, not the rinse clock time.</p></div>
-              )}
-            </div>
-          </section>
-        );
-      })}
+                      <div className="source-feed">
+                        <span>Source feeding</span>
+                        <strong>{feed.time}</strong>
+                      </div>
+                      <div className="rinse-meta">
+                        {rinse
+                          ? `${rinse.duration} sec rinse · ${delay ?? 'review'} min delay after ${feed.duration} sec feed${feed.enabled ? '' : ' · off with feeding'}`
+                          : 'Needs migration review'}
+                      </div>
+                    </article>
+                  );
+                }) : (
+                  <div className="daypart-empty"><Waves /><p>No {period.label.toLowerCase()} feeding routines</p></div>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      <footer className="schedule-footnote">
+        <span>Rinse times are calculated from each feeding time, feeding duration and delay. This page stores the schedule; it does not confirm that equipment has run.</span>
+      </footer>
     </div>
   );
 }
